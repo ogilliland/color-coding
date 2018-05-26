@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+    <title>Explore | RepoStory</title>
+    <%- include('./partials/head') %>
+</head>
+<body>
+<div class="container">
+
+    <div class="login-prompt material-card">
+        <h1>Success</h1>
+
+        <p>
+            <strong>id:</strong> <%= user.github.id %><br>
+            <strong>token:</strong> <%= user.github.token %><br>
+            <strong>email:</strong> <%= user.github.email %><br>
+            <strong>name:</strong> <%= user.github.name %>
+        </p>
+
+        <a href="/logout" class="btn">Sign Out</a>
+
+    </div>
+
+</div>
+</body>
+</html>
