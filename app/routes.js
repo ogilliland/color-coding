@@ -17,9 +17,13 @@ module.exports = function(app, passport) {
     // we will want this protected so you have to be logged in to visit
     // we will use route middleware to verify this (the isLoggedIn function)
     app.get('/', isLoggedIn, function(req, res) {
-        res.render('main.ejs', {
-            user : req.user // get the user out of session and pass to template
-        });
+        // check if client sent cookie
+        if (req.cookies.githubToken != req.user.github.token) {
+            res.cookie('githubToken', req.user.github.token, { maxAge: 31536000 });
+        }
+
+        // render page
+        res.render('main.ejs');
     });
 
     // =====================================
@@ -40,10 +44,10 @@ module.exports = function(app, passport) {
 
     // the callback after github has authenticated the user
     app.get('/auth/github/callback',
-            passport.authenticate('github', {
-                    successRedirect : '/',
-                    failureRedirect : '/login'
-            }));
+        passport.authenticate('github', {
+            successRedirect : '/',
+            failureRedirect : '/login'
+        }));
 };
 
 // route middleware to make sure a user is logged in

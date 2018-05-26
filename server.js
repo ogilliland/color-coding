@@ -30,9 +30,10 @@ app.set('view engine', 'ejs'); // set up ejs for templating
 // required for passport
 app.use(session({
 	cookie : {
-	    maxAge: 3600000 // stay logged in
+	    maxAge: 3600000, // stay logged in
+	    httpOnly: true // protect from javascript
 	},
-	secret: 'mysupersecretpassword'  // session secret
+	secret: process.env.SESSION_SECRET
 }));
 app.use(passport.initialize());
 app.use(passport.session()); // persistent login sessions

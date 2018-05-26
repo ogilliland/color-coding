@@ -50,8 +50,19 @@ module.exports = function(passport) {
 
                 if (user) {
 
-                    // if a user is found, log them in
-                    return done(null, user);
+                    // if the user is found, update their details
+                    user.github.token = token;
+                    user.github.name  = profile.displayName;
+                    user.github.email = profile.emails[0].value; // pull the first email
+
+                    User.update({ 'github.id' : profile.id }, user, function(err, raw) {
+                        if (err) {
+                            // something went wrong
+                            return done(err, user);
+                        }
+                            // otherwise update worked
+                            return done(null, user);
+                    });
                 } else {
                     // if the user isnt in our database, create a new user
                     var newUser          = new User();
