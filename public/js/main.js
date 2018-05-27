@@ -11,6 +11,55 @@ $(document).ready(function() {
 	getRepo();
 });
 
+var getAscii = function(str) {
+	return str.split('')
+	  .map(function (char) {
+	    return char.charCodeAt(0);
+	  })
+	  .reduce(function (current, previous) {
+	    return previous + current;
+	  });
+}
+
+var HSVtoRGB = function(h, s, v) {
+	var r, g, b, i, f, p, q, t;
+	i = Math.floor(h * 6);
+	f = h * 6 - i;
+	p = v * (1 - s);
+	q = v * (1 - f * s);
+	t = v * (1 - (1 - f) * s);
+	
+	switch (i % 6) {
+		case 0: r = v, g = t, b = p; break;
+		case 1: r = q, g = v, b = p; break;
+		case 2: r = p, g = v, b = t; break;
+		case 3: r = p, g = q, b = v; break;
+		case 4: r = t, g = p, b = v; break;
+		case 5: r = v, g = p, b = q; break;
+	}
+	return {
+		'R': Math.round(r * 255),
+		'G': Math.round(g * 255),
+		'B': Math.round(b * 255)
+	};
+}
+
+var getUserColor = function(username) {
+	var hue = (getAscii(username)%50)/50; // pseudo-random color from username
+	return { 'main': HSVtoRGB(hue, 0.8, 1), 'shadow': HSVtoRGB(hue, 0.8, 0.9) };
+}
+
+// TODO - prevent multiple function calls from adding duplicate sheets
+var setUserColors = function(users) {
+	var sheet = document.createElement('style');
+	for(var i = 0; i < users.length; i++) {
+		var color = getUserColor(users[i]);
+		sheet.innerHTML += ".user-" + users[i] + ".blame-block { background-color: rgb(" + color['main']['R'] + ", " + color['main']['G'] + ", " + color['main']['B'] + "); }\n";
+		sheet.innerHTML += ".user-" + users[i] + ".line-number { background-color: rgb(" + color['shadow']['R'] + ", " + color['shadow']['G'] + ", " + color['shadow']['B'] + "); }\n";
+	}
+	document.body.appendChild(sheet);
+}
+
 var getCookieByName = function(name){
 	var pair = document.cookie.match(new RegExp(name + '=([^;]+)'));
 	return !!pair ? pair[1] : null;
@@ -141,16 +190,21 @@ var getBlame = function(commitContent, name, owner, fileOid, fileName, blameOid)
 	    success: function (data) {
 	    	var contents = data['data']['repository']['file']['text'].split("\n");
 	    	var blame = data['data']['repository']['commit']['blame']['ranges'];
+	    	var users = []; // we will fill this with usernames as we find them
 	    	for(var i = 0; i < blame.length; i++) {
 	    		var newBlock = document.createElement('div');
 	    		newBlock.classList.add('blame-block');
 	    		newBlock.classList.add('oid-' + blame[i]['commit']['abbreviatedOid']);
 	    		newBlock.classList.add('user-' + blame[i]['commit']['author']['user']['login']);
+	    		if(users.indexOf(blame[i]['commit']['author']['user']['login']) === -1) {
+	    			users.push(blame[i]['commit']['author']['user']['login']);
+	    		}
 	    		for (var j = blame[i]['startingLine']; j <= blame[i]['endingLine']; j++) {
 	    			var newLine = document.createElement('div');
 	    			newLine.classList.add('blame-line');
 	    			var lineNumber = document.createElement('div');
 	    			lineNumber.classList.add('line-number');
+	    			lineNumber.classList.add('user-' + blame[i]['commit']['author']['user']['login']);
 	    			lineNumber.textContent = j;
 	    			var lineText = document.createElement('div');
 	    			lineText.classList.add('line-text');
@@ -166,6 +220,7 @@ var getBlame = function(commitContent, name, owner, fileOid, fileName, blameOid)
 				}
 				commitContent.appendChild(newBlock);
 	    	}
+	    	setUserColors(users);
 	    },
 	    error: function (jqXHR, textStatus, errorThrown) {
 	    	// TODO - show "whoops something went wrong"
