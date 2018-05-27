@@ -1,2 +1,2 @@
-# repo-story
-Visual representation of git history and git blame
+# Color Coding
+Visual storytelling for git history and git blame

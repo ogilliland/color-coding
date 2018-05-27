@@ -110,7 +110,7 @@ var getRepo = function() {
 	if(getUrlParameter("name") != null) {
 		var name = getUrlParameter("name");
 	} else {
-		var name = "repo-story";
+		var name = "color-coding";
 	}
 	var query = JSON.stringify({ "query": "{ repository(owner: \"" + owner + "\", name: \"" + name + "\") { name owner { login } description branch: defaultBranchRef { name commits: target { ... on Commit { history(first: 10) { commit: nodes { oid abbreviatedOid committedDate message tree { entries { oid name } } } } } } } } }" });
 	$.ajax({
