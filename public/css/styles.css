@@ -20,7 +20,6 @@ body {
 
 .container {
   height: 100vh;
-  padding: 6px 10px 6px 10px;
 }
 
 .container-center {
@@ -95,23 +94,26 @@ body {
   height: 100px;
 }
 
+.commit {
+  width: 100vw;
+  padding: 3px 5px 5px 5px;
+}
+
 .commit-header {
   font-family: "Times New Roman", serif;
   font-style: italic;
   font-size: 14px;
   color: rgb(150, 150, 150);
-  padding: 0px 6px 3px 6px;
+  padding: 0px 5px 3px 5px;
 }
 
 .commit-content {
-  width: 30%;
-  height: 100%;
+  width: 90%;
   float: left;
 }
 
 .commit-transition {
-  width: 5%;
-  height: 100%;
+  width: 10%;
   float: left;
 }
 
@@ -129,7 +131,7 @@ body {
   text-align: right;
   overflow: hidden;
   padding-right: 7px;
-  width: 8%;
+  width: 5%;
   background-color: rgb(213, 142, 26); /* dark orange */
   /* hacky way to ensure equal heights */
   margin-top: -3px;
@@ -142,7 +144,7 @@ body {
   float: left;
   padding-left: 6px;
   padding-right: 6px;
-  width: 92%;
+  width: 95%;
   /* hacky way to ensure equal heights */
   padding-bottom: 100%;
   margin-bottom: -100%;
