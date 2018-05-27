@@ -1,4 +1,13 @@
 $(document).ready(function() {
+	if(getUrlParameter("owner") != null) {
+		$('#input-owner').val(getUrlParameter("owner"));
+	}
+	if(getUrlParameter("name") != null) {
+		$('#input-name').val(getUrlParameter("name"));
+	}
+	if(getUrlParameter("file") != null) {
+		$('#input-file').val(getUrlParameter("file"));
+	}
 	getRepo();
 });
 
@@ -7,15 +16,15 @@ var getCookieByName = function(name){
 	return !!pair ? pair[1] : null;
 };
 
-function getUrlParameter(name) {
+var getUrlParameter = function(name) {
     name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
     var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
     var results = regex.exec(location.search);
-    return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    return results === null ? null : decodeURIComponent(results[1].replace(/\+/g, ' '));
 };
 
 var getMonthName = function(dateObject) {
-	switch(dateObject.getUTCMonth()) {
+	switch(dateObject.getMonth()) {
 		case 0:
 			return "Jan";
 		case 1:
@@ -43,54 +52,73 @@ var getMonthName = function(dateObject) {
 	}
 }
 
-var getRepo = function() { // TODO - user selects repository through interface
+var getRepo = function() {
+	if(getUrlParameter("owner") != null) {
+		var owner = getUrlParameter("owner");
+	} else {
+		var owner = "ogilliland";
+	}
+	if(getUrlParameter("name") != null) {
+		var name = getUrlParameter("name");
+	} else {
+		var name = "repo-story";
+	}
+	var query = JSON.stringify({ "query": "{ repository(owner: \"" + owner + "\", name: \"" + name + "\") { name owner { login } description branch: defaultBranchRef { name commits: target { ... on Commit { history(first: 10) { commit: nodes { oid abbreviatedOid committedDate message tree { entries { oid name } } } } } } } } }" });
 	$.ajax({
 	    url: "https://api.github.com/graphql",
 	    method: "POST",
 	    dataType: "json",
 	    contentType: "application/json; charset=utf-8",
-	    data: JSON.stringify({ "query": "{ viewer { repositories(last: 1) { repository: nodes { name owner { login } description branch: defaultBranchRef { name commits: target { ... on Commit { history(first: 10) { commit: nodes { oid abbreviatedOid committedDate message tree { entries { oid name } } } } } } } } } } }" }),
+	    data: query,
 	    cache: false,
 	    beforeSend: function (xhr) {
 	        /* authorization header */
 	        xhr.setRequestHeader("Authorization", "Bearer " + getCookieByName("githubToken"));
 	    },
 	    success: function (data) {
-	    	var repo = data['data']['viewer']['repositories']['repository'][0];
-	    	var name = repo['name'];
-	    	var owner = repo['owner']['login'];
+	    	var repo = data['data']['repository'];
+	    	// var name = repo['name'];
+	    	// var owner = repo['owner']['login'];
 	    	var branch = repo['branch']['name'];
 	    	var commit = repo['branch']['commits']['history']['commit'];
-	    	var fileName = "README.md"; // TODO - user selects file through interface
+	    	if(getUrlParameter("file") != null) {
+				var fileName = getUrlParameter("file");
+			} else {
+				var fileName = "server.js";
+			}
 	    	var fileOid = "";
-	    	var blameOid = commit[0]['oid'];
-	    	// find the correct file in commit tree
-	    	for(var j = 0; j < commit[0]['tree']['entries'].length; j++) {
-	    		if(commit[0]['tree']['entries'][j]['name'] == fileName) {
-	    			fileOid = commit[0]['tree']['entries'][j]['oid'];
-	    			// TODO - add error handling if no file is found?
-	    		}
-	    	}
-	    	// add basic commit container
-	    	var commitContainer = document.createElement('div');
-	    	commitContainer.classList.add('commit');
-	    	var commitContent = document.createElement('div');
-	    	commitContent.classList.add('commit-content');
-	    	var commitHeader = document.createElement('div');
-	    	commitHeader.classList.add('commit-header');
-	    	var committedDate = new Date(commit[0]['committedDate']);
-	    	commitHeader.textContent = ("0" + committedDate.getUTCDate()).slice(-2) + " " +
-									   getMonthName(committedDate) + " " +
-									   committedDate.getUTCFullYear() + " at " +
-									   ("0" + committedDate.getUTCHours()).slice(-2) + ":" +
-									   ("0" + committedDate.getUTCMinutes()).slice(-2) + ":" +
-									   ("0" + committedDate.getUTCSeconds()).slice(-2) + " - " + 
-									   commit[0]['message'];
-	    	commitContainer.appendChild(commitHeader);
-	    	commitContainer.appendChild(commitContent);
-	    	$('.container').append(commitContainer);
-	    	// add blame blocks inside commit
-	    	getBlame(commitContent, name, owner, fileOid, fileName, blameOid);
+	    	// update container width
+	    	$('.container').css('width', commit.length*50 + 'vw');
+	    	// loop through commit history
+	    	for(var i = commit.length-1; i >= 0; i--) {
+		    	var blameOid = commit[i]['oid'];
+		    	// find the correct file in commit tree
+		    	for(var j = 0; j < commit[i]['tree']['entries'].length; j++) {
+		    		if(commit[i]['tree']['entries'][j]['name'] == fileName) {
+		    			fileOid = commit[i]['tree']['entries'][j]['oid'];
+		    			// TODO - add error handling if no file is found?
+		    		}
+		    	}
+		    	// add basic commit container
+		    	var commitContainer = document.createElement('div');
+		    	commitContainer.classList.add('commit');
+		    	var commitContent = document.createElement('div');
+		    	commitContent.classList.add('commit-content');
+		    	var commitHeader = document.createElement('div');
+		    	commitHeader.classList.add('commit-header');
+		    	var committedDate = new Date(commit[i]['committedDate']);
+		    	commitHeader.textContent = ("0" + committedDate.getDate()).slice(-2) + " " +
+										   getMonthName(committedDate) + " " +
+										   committedDate.getFullYear() + " at " +
+										   ("0" + committedDate.getHours()).slice(-2) + ":" +
+										   ("0" + committedDate.getMinutes()).slice(-2) + " - " + 
+										   commit[i]['message'];
+		    	commitContainer.appendChild(commitHeader);
+		    	commitContainer.appendChild(commitContent);
+		    	$('.container').append(commitContainer);
+		    	// add blame blocks inside commit
+		    	getBlame(commitContent, name, owner, fileOid, fileName, blameOid);
+		    }
 	    },
 	    error: function (jqXHR, textStatus, errorThrown) {
 	    	// TODO - show "whoops something went wrong"
@@ -130,7 +158,7 @@ var getBlame = function(commitContent, name, owner, fileOid, fileName, blameOid)
 	    				 lineText.innerHTML = "<br>";
 	    			} else {
 	    				// TODO - fix this expression so it matches multiple ocurrences
-	    				lineText.innerHTML = contents[j-1].replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;").replace("  ", "&nbsp;&nbsp;");
+	    				lineText.textContent = contents[j-1].replace("\t", "\xa0\xa0\xa0\xa0").replace("  ", "\xa0\xa0");
 	    			}
 	    			newLine.appendChild(lineNumber);
 	    			newLine.appendChild(lineText);

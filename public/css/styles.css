@@ -3,6 +3,8 @@ html {
   font-size: 100%;
   -ms-text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+  height: 100%;
 }
 
 * {
@@ -16,17 +18,25 @@ body {
   font-size: 12px;
   line-height: 1.5;
   background-color: rgb(245, 245, 245);
+  height: 100%;
+  overflow: auto;
 }
 
 .container {
-  height: 100vh;
+  width: 100vw;
+  overflow: auto;
 }
 
-.container-center {
+.container.center {
+  height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center; 
   justify-content: center;
+}
+
+.container.with-menu {
+  margin-top: 100px;
 }
 
 .login-prompt {
@@ -95,8 +105,9 @@ body {
 }
 
 .commit {
-  width: 100vw;
-  padding: 3px 5px 5px 5px;
+  width: 50vw;
+  padding: 8px 12px 7px 12px;
+  float: left;
 }
 
 .commit-header {
@@ -105,6 +116,10 @@ body {
   font-size: 14px;
   color: rgb(150, 150, 150);
   padding: 0px 5px 3px 5px;
+  height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .commit-content {
@@ -131,7 +146,7 @@ body {
   text-align: right;
   overflow: hidden;
   padding-right: 7px;
-  width: 5%;
+  width: 6%;
   background-color: rgb(213, 142, 26); /* dark orange */
   /* hacky way to ensure equal heights */
   margin-top: -3px;
@@ -144,8 +159,53 @@ body {
   float: left;
   padding-left: 6px;
   padding-right: 6px;
-  width: 95%;
+  width: 94%;
   /* hacky way to ensure equal heights */
   padding-bottom: 100%;
   margin-bottom: -100%;
+}
+
+.menu {
+  position: fixed;
+  top: -600px;
+  left: -20vw;
+  width: 140vw;
+  height: 700px;
+  padding: 620px 22vw 0 22vw;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.btn-menu {
+  position: relative;
+  font-weight: bold;
+  top: -16px;
+  margin-left: 60px;
+  cursor: pointer;
+}
+
+h2 {
+  text-transform: uppercase;
+  font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  /* font-size: 30px;
+  line-height: 1.5; */
+  letter-spacing: 0.2em;
+  padding: 0;
+  margin: 0;
+  margin-bottom: -20px;
+}
+
+input[type=text] {
+  font-size: 16px;
+  width: 100px;
+  outline: none;
+  padding: 3px 0px 3px 3px;
+  margin: 5px 1px 3px 0px;
+  border: none;
+  border-bottom: 1px solid #DDDDDD;
+}
+ 
+input[type=text]:focus {
+  border-bottom: 1px solid rgba(81, 203, 238, 1);
 }
