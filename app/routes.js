@@ -1,4 +1,13 @@
+var ensureLoggedIn = require('connect-ensure-login').ensureLoggedIn; // middleware to redirect on login
+
 module.exports = function(app, passport) {
+
+    app.use(function(req, res, next) {
+      if (!req.secure && req.get('x-forwarded-proto') !== 'https' && process.env.NODE_ENV !== "development") {
+        return res.redirect('https://' + req.get('host') + req.url);
+      }
+      next();
+    });
 
     // =====================================
     // LOGIN PAGE ==========================
@@ -15,8 +24,8 @@ module.exports = function(app, passport) {
     // MAIN APP SECTION ====================
     // =====================================
     // we will want this protected so you have to be logged in to visit
-    // we will use route middleware to verify this (the isLoggedIn function)
-    app.get('/', isLoggedIn, function(req, res) {
+    // we will use route middleware to verify this (ensureLoggedIn)
+    app.get('/', ensureLoggedIn('/login'), function(req, res) {
         // check if client sent cookie
         if (req.cookies.githubToken != req.user.github.token) {
             res.cookie('githubToken', req.user.github.token, { maxAge: 31536000 });
@@ -45,18 +54,7 @@ module.exports = function(app, passport) {
     // the callback after github has authenticated the user
     app.get('/auth/github/callback',
         passport.authenticate('github', {
-            successRedirect : '/',
+            successReturnToOrRedirect: '/',
             failureRedirect : '/login'
         }));
 };
-
-// route middleware to make sure a user is logged in
-function isLoggedIn(req, res, next) {
-
-    // if user is authenticated in the session, carry on 
-    if (req.isAuthenticated())
-        return next();
-
-    // if they aren't redirect them to the login page
-    res.redirect('/login');
-}
