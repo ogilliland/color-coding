@@ -25,7 +25,33 @@ $(document).ready(function() {
 	getAllCommits(owner, repo, fileName).then(
 		function success(commits) {
 			// code to run when finished loading
-	    	draw(commits);
+			var users = []; // we will fill this with usernames as we find them
+			var numShown = Math.min(commits.length, 4);
+	    	// update container width
+			$('.container').css('width', (commits.length*50 - 4) + 'vw');
+			// draw first 3 blocks
+			drawCommitContainers(commits);
+			drawCommits(users, commits, 0, numShown);
+			// draw first 2 transitions
+			drawLinks(users, commits, 0, numShown-1);
+			// add user styles
+			setUserColors(users);
+			// define scroll event
+			$(window).scroll(function() {
+				if($(window).scrollLeft() > $(window).width()/2) {
+					var numToShow = 3 + Math.ceil($(window).scrollLeft()/($(window).width()/2));
+					if(numShown < numToShow) {
+						// draw new elements
+						drawCommits(users, commits, numShown, numToShow);
+						// draw new transitions
+						drawLinks(users, commits, numShown-1, numToShow-1);
+						// update user styles
+						updateUserColors(users);
+						// update count
+						numShown = numToShow;
+					}
+				}
+			});
 		},
 		function failure(jqXHR, textStatus, errorThrown) {
 			// code to run if anything failed to load
@@ -69,17 +95,30 @@ var HSVtoRGB = function(h, s, v) {
 
 var getUserColor = function(username) {
 	var hue = (getAscii(username)%50)/50; // pseudo-random color from username
-	return { 'main': HSVtoRGB(hue, 0.8, 1), 'shadow': HSVtoRGB(hue, 0.8, 0.9) };
+	return { 'main': HSVtoRGB(hue, 0.8, 1), 'dark': HSVtoRGB(hue, 0.8, 0.9), 'darker': HSVtoRGB(hue, 0.8, 0.85) };
 }
 
 var setUserColors = function(users) {
 	var sheet = document.createElement('style');
+	sheet.id = 'user-styles';
 	for(var i = 0; i < users.length; i++) {
 		var color = getUserColor(users[i]);
 		sheet.innerHTML += ".user-" + users[i] + ".blame-block { background-color: rgb(" + color['main']['R'] + ", " + color['main']['G'] + ", " + color['main']['B'] + "); }\n";
-		sheet.innerHTML += ".user-" + users[i] + ".line-number { background-color: rgb(" + color['shadow']['R'] + ", " + color['shadow']['G'] + ", " + color['shadow']['B'] + "); }\n";
+		sheet.innerHTML += ".user-" + users[i] + ".line-number { background-color: rgb(" + color['dark']['R'] + ", " + color['dark']['G'] + ", " + color['dark']['B'] + "); }\n";
+		sheet.innerHTML += ".user-" + users[i] + ".transition { fill: rgb(" + color['darker']['R'] + ", " + color['darker']['G'] + ", " + color['darker']['B'] + "); }\n";
 	}
 	document.head.appendChild(sheet);
+}
+
+var updateUserColors = function(users) {
+	var sheet = document.getElementById('user-styles');
+	sheet.innerHTML = '';
+	for(var i = 0; i < users.length; i++) {
+		var color = getUserColor(users[i]);
+		sheet.innerHTML += ".user-" + users[i] + ".blame-block { background-color: rgb(" + color['main']['R'] + ", " + color['main']['G'] + ", " + color['main']['B'] + "); }\n";
+		sheet.innerHTML += ".user-" + users[i] + ".line-number { background-color: rgb(" + color['dark']['R'] + ", " + color['dark']['G'] + ", " + color['dark']['B'] + "); }\n";
+		sheet.innerHTML += ".user-" + users[i] + ".transition { fill: rgb(" + color['darker']['R'] + ", " + color['darker']['G'] + ", " + color['darker']['B'] + "); }\n";
+	}
 }
 
 var getCookieByName = function(name){
@@ -240,18 +279,22 @@ var getAllBlobs = function(owner, repo, fileName, commits) {
 	return deferred.promise();
 }
 
-var draw = function(commits) {
-	var users = []; // we will fill this with usernames as we find them
-
-	// update container width
-	$('.container').css('width', commits.length*50 + 'vw');
+var drawCommitContainers = function(commits) {
 	// loop through commit history
 	for(var i = 0; i < commits.length; i++) {
     	// add basic commit container
     	var commitContainer = document.createElement('div');
     	commitContainer.classList.add('commit');
+    	commitContainer.id = i+1;
     	var commitContent = document.createElement('div');
     	commitContent.classList.add('commit-content');
+    	if(i == commits.length-1) {
+    		commitContainer.classList.add('last');
+    		commitContent.classList.add('last');
+    	} else {
+			var transition = document.createElement('div');
+	    	transition.classList.add('commit-transition');
+    	}
     	var commitHeader = document.createElement('div');
     	commitHeader.classList.add('commit-header');
     	var committedDate = new Date(commits[i]['date']);
@@ -262,42 +305,62 @@ var draw = function(commits) {
 								   ("0" + committedDate.getMinutes()).slice(-2) + " - " + 
 								   commits[i]['message'];
     	commitContainer.appendChild(commitHeader);
+    	commitContainer.appendChild(commitContent);
+    	if(i != commits.length-1) {
+    		commitContainer.appendChild(transition);
+    	}
+    	$('.container').append(commitContainer);
+    }
+}
+
+var drawCommits = function(users, commits, first, last) {
+	if(last > commits.length) {
+		last = commits.length;
+	}
+	if(first > last) {
+		return;
+	}
+	// loop through commit history
+	for(var i = first; i < last; i++) {
+    	// find commit container
+    	var commitContent = $('#'+(i+1)).find('.commit-content');
     	// add blame blocks inside commit
-    	var fileText = commits[i]['text'].split("\n");
+    	commits[i]['text'] = commits[i]['text'].split("\n");
     	for(var j = 0; j < commits[i]['blame'].length; j++) {
     		var newBlock = document.createElement('div');
     		newBlock.classList.add('blame-block');
     		newBlock.classList.add('oid-' + commits[i]['blame'][j]['commit']['abbreviatedOid']);
     		newBlock.classList.add('user-' + userNotNull(commits[i]['blame'][j]['commit']['author']));
+    		newBlock.id = (i+1) + "-" + (j+1);
     		if(users.indexOf(userNotNull(commits[i]['blame'][j]['commit']['author'])) === -1) {
     			users.push(userNotNull(commits[i]['blame'][j]['commit']['author']));
     		}
     		for (var k = commits[i]['blame'][j]['startingLine']; k <= commits[i]['blame'][j]['endingLine']; k++) {
     			var newLine = document.createElement('div');
     			newLine.classList.add('blame-line');
+    			// newLine.id = (i+1) + "-" + (j+1) + "-" + k;
+    			newLine.id = 'line-' + k;
     			var lineNumber = document.createElement('div');
     			lineNumber.classList.add('line-number');
     			lineNumber.classList.add('user-' + userNotNull(commits[i]['blame'][j]['commit']['author']));
     			lineNumber.textContent = k;
     			var lineText = document.createElement('div');
     			lineText.classList.add('line-text');
-    			if(fileText[k-1].replace(/\t/g, "").replace(/ /g, "").length < 1) {
+    			if(commits[i]['text'][k-1].replace(/\t/g, "").replace(/ /g, "").length < 1) {
     				 lineText.innerHTML = "<br>";
     			} else {
-    				lineText.textContent = fileText[k-1].replace(/\t/g, "\xa0\xa0\xa0\xa0").replace(/  /g, "\xa0\xa0");
+    				lineText.textContent = commits[i]['text'][k-1].replace(/\t/g, "\xa0\xa0\xa0\xa0").replace(/  /g, "\xa0\xa0");
     			}
     			newLine.appendChild(lineNumber);
     			newLine.appendChild(lineText);
+    			var clearDiv = document.createElement('div');
+    			clearDiv.setAttribute('style', 'clear: both;');
+    			newLine.appendChild(clearDiv);
     			newBlock.appendChild(newLine);
 			}
-			commitContent.appendChild(newBlock);
+			commitContent.append(newBlock);
     	}
-    	commitContainer.appendChild(commitContent);
-    	$('.container').append(commitContainer);
     }
-
-	// add users
-    setUserColors(users);
 }
 
 var userNotNull = function(author) {
@@ -305,5 +368,113 @@ var userNotNull = function(author) {
 		return "undefined";
 	} else {
 		return author['user']['login'];
+	}
+}
+
+// abuse the DOM to draw transitions
+var drawLinks = function(users, commits, first, last) {
+	// TODO - solve the transition conflict when commit blocks are re-merged
+	//        by looking at all text in commit sha instead of all text in blame version
+	//        [a1][b1][a2] --> [a12] doesn't display correctly
+	if(last > commits.length) {
+		last = commits.length;
+	}
+	if(first > last) {
+		return;
+	}
+	for(var i = first; i < last; i++) {
+		var k = 0; // count line number across blocks
+		var ns = 'http://www.w3.org/2000/svg';
+		var svg = document.createElementNS(ns, 'svg');
+		svg.setAttributeNS(null, 'width', '100%');
+		if($('#'+(i+2)).find('.commit-content').height() === undefined) {
+			svg.setAttributeNS(null, 'height', '0px');
+		} else {
+			svg.setAttributeNS(null, 'height', (Math.max($('#'+(i+2)).find('.commit-content').height(),$('#'+(i+1)).find('.commit-content').height())-5)+'px');
+		}
+		svg.setAttributeNS(null, 'style', 'z-index: -1;');
+		$('#'+(i+1)).find('.commit-transition').append(svg);
+		var linesMatched = [ {}, {} ];
+		// iterate over lines in this commit
+		for(var j = 0; j < commits[i]['text'].length; j++) {
+			// iterate over lines in next commit
+			for(var k = 0; k < commits[i+1]['text'].length; k++) {
+				var lineCount = 0;
+				var run = true;
+				while(run) {
+					if($('#'+(i+1)).find('#line-'+(j+1+lineCount)).find('.line-text').html() !== $('#'+(i+2)).find('#line-'+(k+1+lineCount)).find('.line-text').html()
+					|| getOid($('#'+(i+1)).find('#line-'+(j+1+lineCount)).parent().attr('class')) !== getOid($('#'+(i+2)).find('#line-'+(k+1+lineCount)).parent().attr('class'))
+					|| getOid($('#'+(i+1)).find('#line-'+(j+1)).parent().attr('class')) !== getOid($('#'+(i+1)).find('#line-'+(j+1+lineCount)).parent().attr('class'))
+					|| linesMatched[0][String(j+1+lineCount)]
+					|| linesMatched[1][String(k+1+lineCount)]
+					|| j+lineCount >= commits[i]['text'].length
+					|| k+lineCount >= commits[i+1]['text'].length
+					|| $('#'+(i+1)).find('#line-'+(j+1+lineCount)).find('.line-text').html() === undefined) {
+						run = false;
+					} else {
+						lineCount++;
+					}
+				}
+				if(lineCount > 0) {
+					var xOffset = $('#'+(i+1)).find('.commit-content').offset().left + $('#'+(i+1)).find('.commit-content').width();
+					var yOffset = $('#'+(i+1)).find('.commit-content').offset().top;
+					var x1 = $('#'+(i+1)).find('#line-'+(j+1)).offset().left + $('#'+(i+1)).find('#line-'+(j+1)).width();
+					var y1 = $('#'+(i+1)).find('#line-'+(j+1)).offset().top;
+					var x2 = $('#'+(i+2)).find('#line-'+(k+1)).offset().left;
+					var y2 = $('#'+(i+2)).find('#line-'+(k+1)).offset().top;
+					var x3 = $('#'+(i+2)).find('#line-'+(k+lineCount)).offset().left;
+					var y3 = $('#'+(i+2)).find('#line-'+(k+lineCount)).offset().top + $('#'+(i+2)).find('#line-'+(k+lineCount)).height();
+					var x4 = $('#'+(i+1)).find('#line-'+(j+lineCount)).offset().left + $('#'+(i+1)).find('#line-'+(j+lineCount)).width();
+					var y4 = $('#'+(i+1)).find('#line-'+(j+lineCount)).offset().top + $('#'+(i+1)).find('#line-'+(j+lineCount)).height();
+					var user = getUser($('#'+(i+1)).find('#line-'+(j+1)).parent().attr('class'));
+					// draw shape
+					// console.log('MATCH @ ['+j+' ---> '+(j+lineCount)+'] ['+k+' ---> '+(k+lineCount)+']');
+					drawLink(ns, svg, user, xOffset, yOffset, x1, y1, x2, y2, x3, y3, x4, y4);
+					// mark these lines as off limits
+					offLimits(linesMatched, 0, j, j+lineCount);
+					offLimits(linesMatched, 1, k, k+lineCount);
+				}
+			}
+		}
+	}
+}
+
+var drawLink = function(ns, svg, user, xOffset, yOffset, x1, y1, x2, y2, x3, y3, x4, y4) {
+	yOffset = yOffset + 3;
+	var poly = document.createElementNS(ns, 'polygon');
+	poly.setAttributeNS(null, 'points', (x1-xOffset)+','+(y1-yOffset)+' '+(x2-xOffset)+','+(y2-yOffset)+' '+(x3-xOffset)+','+(y3-yOffset+6)+' '+(x4-xOffset)+','+(y4-yOffset+6));
+	poly.setAttributeNS(null, 'class', 'user-'+user+' transition');
+	svg.appendChild(poly);
+}
+
+var offLimits = function(linesMatched, commit, start, end) {
+	for(var i = start; i <= end; i++) {
+		linesMatched[commit][String(i)] = true;
+	}
+}
+
+var getOid = function(classList) {
+	if(classList === undefined) {
+		return "undefined";
+	} else {
+		var classes = classList.split(' ');
+		for(var i = 0; i < classes.length; i++) {
+			if(classes[i].substring(0, 4) == 'oid-') {
+				return classes[i].substring(4);
+			}
+		}
+	}
+}
+
+var getUser = function(classList) {
+	if(classList === undefined) {
+		return "undefined";
+	} else {
+		var classes = classList.split(' ');
+		for(var i = 0; i < classes.length; i++) {
+			if(classes[i].substring(0, 5) == 'user-') {
+				return classes[i].substring(5);
+			}
+		}
 	}
 }
